@@ -5,18 +5,17 @@ FROM python:3.9 AS builder
 
 WORKDIR /app
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     default-libmysqlclient-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
+COPY requirement.txt .
+
+RUN pip install --no-cache-dir -r requirement.txt
+
 COPY . .
-
-RUN pip install --no-cache-dir --prefix=/install -r requirement.txt
-
 
 
 # =========================
@@ -26,17 +25,16 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    default-libmysqlclient-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Copy python dependencies (IMPORTANT)
+COPY --from=builder /usr/local/lib/python3.9/site-packages \
+                     /usr/local/lib/python3.9/site-packages
 
-# Copy the built dependencies from the builder stage
-COPY --from=builder /usr/local/lib/python3.9/site-packages/ /usr/local/lib/python3.9/site-packages/
+COPY --from=builder /usr/local/lib/python3.9/dist-packages \
+                     /usr/local/lib/python3.9/dist-packages
 
-# Copy the application code from the builder stage
-COPY --from=builder /app /app 
- # Expose port 5000 for the Flask application
+# Copy app code
+COPY --from=builder /app /app
+
 EXPOSE 5000
 
-# Default command (adjust as needed)
 CMD ["python", "app.py"]
