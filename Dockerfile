@@ -25,15 +25,14 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# RUN apt-get update && apt-get install -y \
-#     default-libmysqlclient-dev \
-#     && rm -rf /var/lib/apt/lists/*
-
-# Copy installed Python packages
+# Copy python dependencies (IMPORTANT)
 COPY --from=builder /usr/local/lib/python3.9/site-packages \
                      /usr/local/lib/python3.9/site-packages
 
-# Copy app source
+COPY --from=builder /usr/local/lib/python3.9/dist-packages \
+                     /usr/local/lib/python3.9/dist-packages
+
+# Copy app code
 COPY --from=builder /app /app
 
 EXPOSE 5000
