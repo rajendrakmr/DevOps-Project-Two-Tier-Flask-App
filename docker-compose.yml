@@ -27,8 +27,7 @@ services:
 
   flask-app:
     container_name: two-tier-app
-    build:
-      context: .
+    image: cloudwithrk/flask-app:latest
 
     ports:
       - "5000:5000"
