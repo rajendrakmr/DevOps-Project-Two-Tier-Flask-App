@@ -26,6 +26,10 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y \
+    default-libmysqlclient-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy the built dependencies from the builder stage
 COPY --from=builder /usr/local/lib/python3.9/site-packages/ /usr/local/lib/python3.9/site-packages/
 
