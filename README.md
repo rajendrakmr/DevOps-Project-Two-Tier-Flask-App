@@ -1,7 +1,6 @@
 # DevOps Project Report: Automated CI/CD Pipeline for a 2-Tier Flask Application on AWS
 
-**Author:** Prashant Gohel
-**Date:** August 23, 2025
+**Author:** Rajendra
 
 ---
 
@@ -31,11 +30,13 @@ This document outlines the step-by-step process for deploying a 2-tier web appli
 
 ```
 +-----------------+      +----------------------+      +-----------------------------+
-|   Developer     |----->|     GitHub Repo      |----->|        Jenkins Server       |
+|   Developer     |----->|     GitHub Repo      |----->|    Jenkins Server           |
 | (pushes code)   |      | (Source Code Mgmt)   |      |  (on AWS EC2)               |
 +-----------------+      +----------------------+      |                             |
                                                        | 1. Clones Repo              |
-                                                       | 2. Builds Docker Image      |
+                                                       | 2. Trivy File scan          |
+                                                       | 3. Builds Docker Image      |
+                                                       | 2. Push to Docker Hub       |
                                                        | 3. Runs Docker Compose      |
                                                        +--------------+--------------+
                                                                       |
@@ -62,8 +63,8 @@ This document outlines the step-by-step process for deploying a 2-tier web appli
 
 1.  **Launch EC2 Instance:**
     * Navigate to the AWS EC2 console.
-    * Launch a new instance using the **Ubuntu 22.04 LTS** AMI.
-    * Select the **t2.micro** instance type for free-tier eligibility.
+    * Launch a new instance using the **Ubuntu 24.04 LTS** AMI.
+    * Select the **t2.medium** instance type for free-tier eligibility.
     * Create and assign a new key pair for SSH access.
 
 <img src="diagrams/01.png">
@@ -94,7 +95,7 @@ This document outlines the step-by-step process for deploying a 2-tier web appli
 
 2.  **Install Git, Docker, and Docker Compose:**
     ```bash
-    sudo apt install git docker.io docker-compose-v2 -y
+    sudo apt install docker.io docker-compose-v2 -y
     ```
 
 3.  **Start and Enable Docker:**
@@ -115,15 +116,19 @@ This document outlines the step-by-step process for deploying a 2-tier web appli
 
 1.  **Install Java (OpenJDK 17):**
     ```bash
-    sudo apt install openjdk-17-jdk -y
+    sudo apt update
+    sudo apt install fontconfig openjdk-21-jre -y
     ```
 
 2.  **Add Jenkins Repository and Install:**
     ```bash
-    curl -fsSL [https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key](https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key) | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
-    echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] [https://pkg.jenkins.io/debian-stable](https://pkg.jenkins.io/debian-stable) binary/ | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+    sudo wget -O /etc/apt/keyrings/jenkins-keyring.asc \
+    https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc]" \
+    https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+    /etc/apt/sources.list.d/jenkins.list > /dev/null
     sudo apt update
-    sudo apt install jenkins -y
+    sudo apt install jenkins
     ```
 
 3.  **Start and Enable Jenkins Service:**
@@ -145,7 +150,7 @@ This document outlines the step-by-step process for deploying a 2-tier web appli
     sudo usermod -aG docker jenkins
     sudo systemctl restart jenkins
     ```
-<img src="diagrams/03.png">
+ 
 
 ---
 
@@ -156,30 +161,47 @@ Ensure your GitHub repository contains the following three files.
 #### **Dockerfile**
 This file defines the environment for the Flask application container.
 ```dockerfile
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+    # =========================
+    # Stage 1: Builder
+    # =========================
+    FROM python:3.9 AS builder
 
-# Set the working directory in the container
-WORKDIR /app
+    WORKDIR /app
 
-# Install system dependencies required for mysqlclient
-RUN apt-get update && apt-get install -y gcc default-libmysqlclient-dev pkg-config && \
-    rm -rf /var/lib/apt/lists/*
+    RUN apt-get update && apt-get install -y \
+        gcc \
+        default-libmysqlclient-dev \
+        pkg-config \
+        && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file to leverage Docker cache
-COPY requirements.txt .
+    COPY requirement.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+    RUN pip install --no-cache-dir -r requirement.txt
 
-# Copy the rest of the application code
-COPY . .
+    COPY . .
 
-# Expose the port the app runs on
-EXPOSE 5000
 
-# Command to run the application
-CMD ["python", "app.py"]
+    # =========================
+    # Stage 2: Runtime
+    # =========================
+    FROM python:3.9-slim
+
+    WORKDIR /app
+
+    RUN apt-get update && apt-get install -y \
+        libmariadb3 \
+        && rm -rf /var/lib/apt/lists/*
+    # Copy python dependencies 
+
+    COPY --from=builder /usr/local/lib/python3.9/site-packages \
+                        /usr/local/lib/python3.9/site-packages
+
+    COPY --from=builder /app /app
+
+    EXPOSE 5000
+
+    CMD ["python", "app.py"]
+
 ```
 
 #### **docker-compose.yml**
@@ -192,38 +214,43 @@ services:
     container_name: mysql
     image: mysql
     environment:
-      MYSQL_DATABASE: "devops"
       MYSQL_ROOT_PASSWORD: "root"
+      MYSQL_DATABASE: "flask_db"
     ports:
-      - "3306:3306"
+      - 3306:3306
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
+
     networks:
-      - two-tier
+      - flask_network
+
     restart: always
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot","-proot"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 60s
 
-  flask:
-    build:
-      context: .
-    container_name: two-tier-app
+
+  flask-app:
+    container_name: flaskapp
+    image: cloudwithrk/flask-app:latest
+
     ports:
-      - "5000:5000"
+      - 5000:5000
+
     environment:
       - MYSQL_HOST=mysql
       - MYSQL_USER=root
       - MYSQL_PASSWORD=root
-      - MYSQL_DB=devops
+      - MYSQL_DB=flask_db
+
     networks:
-      - two-tier
+      - flask_network 
     depends_on:
-      - mysql
-    restart: always
+      mysql:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
       interval: 10s
@@ -232,79 +259,68 @@ services:
       start_period: 60s
 
 volumes:
-  mysql-data:
-
+  mysql_data: 
 networks:
-  two-tier:
+  flask_network:
+
 ```
 
 #### **Jenkinsfile**
 This file contains the pipeline-as-code definition for Jenkins.
 ```groovy
-pipeline {
-    agent any
-    stages {
-        stage('Clone Code') {
-            steps {
-                // Replace with your GitHub repository URL
-                git branch: 'main', url: '[https://github.com/your-username/your-repo.git](https://github.com/your-username/your-repo.git)'
+pipeline{
+    agent any 
+    stages{
+        stage('Clone Code'){
+            steps{
+                git url: "https://github.com/rajendrakmr/DevOps-Project-Two-Tier-Flask-App.git", branch: "main"
             }
         }
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t flask-app:latest .'
+       
+        stage('Test Case'){
+            steps{
+                echo "Testing case passed..."
             }
         }
-        stage('Deploy with Docker Compose') {
+        stage("Build Code"){
+            steps{
+                sh "docker build -t flask-app ."
+            }
+        }
+        stage('Trivy Image Scan') {
             steps {
-                // Stop existing containers if they are running
-                sh 'docker compose down || true'
-                // Start the application, rebuilding the flask image
-                sh 'docker compose up -d --build'
+                sh 'trivy image --exit-code 1 --severity HIGH,CRITICAL flask-app:latest'
+            }
+        }
+        stage("Push DockerHub"){
+            steps{
+                withCredentials([usernamePassword(
+                    credentialsId: "dockerHubCreds",
+                    passwordVariable: "dockerHubPass",
+                    usernameVariable: "dockerHubUser"
+
+                )]){
+                    sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPass}"
+                    sh "docker tag flask-app:latest  ${env.dockerHubUser}/flask-app:latest"
+                    sh "docker push ${env.dockerHubUser}/flask-app:latest" 
+
+                }
+            }
+        }
+        stage('Deploy'){
+            steps{
+                sh "docker compose down || true"
+                sh "docker compose up -d --build"
             }
         }
     }
+    post {
+        always {
+            sh 'docker system prune -f || true'
+            cleanWs()
+        }
+    }
+
 }
 ```
-
----
-
-### **7. Step 5: Jenkins Pipeline Creation and Execution**
-
-1.  **Create a New Pipeline Job in Jenkins:**
-    * From the Jenkins dashboard, select **New Item**.
-    * Name the project, choose **Pipeline**, and click **OK**.
-
-2.  **Configure the Pipeline:**
-    * In the project configuration, scroll to the **Pipeline** section.
-    * Set **Definition** to **Pipeline script from SCM**.
-    * Choose **Git** as the SCM.
-    * Enter your GitHub repository URL.
-    * Verify the **Script Path** is `Jenkinsfile`.
-    * Save the configuration.
-
-<img src="diagrams/04.png">
-
-3.  **Run the Pipeline:**
-    * Click **Build Now** to trigger the pipeline manually for the first time.
-    * Monitor the execution through the **Stage View** or **Console Output**.
-
-<img src="diagrams/05.png">
-<img src="diagrams/06.png">
-
-4.  **Verify Deployment:**
-    * After a successful build, your Flask application will be accessible at `http://<your-ec2-public-ip>:5000`.
-    * Confirm the containers are running on the EC2 instance with `docker ps`.
-
----
-
-### **8. Conclusion**
-The CI/CD pipeline is now fully operational. Any `git push` to the `main` branch of the configured GitHub repository will automatically trigger the Jenkins pipeline, which will build the new Docker image and deploy the updated application, ensuring a seamless and automated workflow from development to production.
-
-
-### **9. Infrastructure Diagram**
-<img src="diagrams/Infrastructure.png">
-
-
-### **10. Work flow Diagram**
-<img src="diagrams/project_workflow.png">
+ 
