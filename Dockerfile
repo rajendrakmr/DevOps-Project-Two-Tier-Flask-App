@@ -29,14 +29,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     libmariadb3 \
     && rm -rf /var/lib/apt/lists/*
-# Copy python dependencies (IMPORTANT)
+# Copy python dependencies 
 COPY --from=builder /usr/local/lib/python3.9/site-packages \
                      /usr/local/lib/python3.9/site-packages
 
-# COPY --from=builder /usr/local/lib/python3.9/dist-packages \
-#                      /usr/local/lib/python3.9/dist-packages
-
-# Copy app code
+ 
 COPY --from=builder /app /app
 
 EXPOSE 5000
