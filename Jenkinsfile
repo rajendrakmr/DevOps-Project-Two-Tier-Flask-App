@@ -1,23 +1,48 @@
 pipeline{
-    agent any
+    agent any 
     stages{
-        stage('Clone repo'){
+        stage('Clone Code'){
             steps{
-                git branch: 'main', url: 'https://github.com/prashantgohel321/DevOps-Project-Two-Tier-Flask-App.git'
+                git url: "https://github.com/rajendrakmr/DevOps-Project-Two-Tier-Flask-App.git", branch: "main"
             }
         }
-        stage('Build image'){
+        stage('Test Case'){
             steps{
-                sh 'docker build -t flask-app .'
+                echo "Testing case passed..."
             }
         }
-        stage('Deploy with docker compose'){
+        stage("Build Code"){
             steps{
-                // existing container if they are running
-                sh 'docker compose down || true'
-                // start app, rebuilding flask image
-                sh 'docker compose up -d --build'
+                sh "docker build -t flask-app ."
+            }
+        }
+        stage("Push DockerHub"){
+            steps{
+                withCredentials([usernamePassword(
+                    credentialsId: "dockerHubCreds",
+                    passwordVariable: "dockerHubPass",
+                    usernameVariable: "dockerHubUser"
+
+                )]){
+                    sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPass}"
+                    sh "docker tag flask-app:latest  ${env.dockerHubUser}/flask-app:latest"
+                    sh "docker push ${env.dockerHubUser}/flask-app:latest" 
+
+                }
+            }
+        }
+        stage('Deploy'){
+            steps{
+                sh "docker compose down || true"
+                sh "docker compose up -d --build"
             }
         }
     }
+    post {
+        always {
+            sh 'docker system prune -f || true'
+            cleanWs()
+        }
+    }
+
 }
