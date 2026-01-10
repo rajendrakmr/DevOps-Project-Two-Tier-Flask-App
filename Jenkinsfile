@@ -6,6 +6,11 @@ pipeline{
                 git url: "https://github.com/rajendrakmr/DevOps-Project-Two-Tier-Flask-App.git", branch: "main"
             }
         }
+        stage('Trivy Scan'){
+            steps{
+                sh 'trivy fs --exit-code 1 --severity HIGH,CRITICAL .'
+            }
+        }
         stage('Test Case'){
             steps{
                 echo "Testing case passed..."
