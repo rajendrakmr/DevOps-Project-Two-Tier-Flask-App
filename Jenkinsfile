@@ -6,11 +6,7 @@ pipeline{
                 git url: "https://github.com/rajendrakmr/DevOps-Project-Two-Tier-Flask-App.git", branch: "main"
             }
         }
-        stage('Trivy Scan'){
-            steps{
-                sh 'trivy fs --exit-code 1 --severity HIGH,CRITICAL .'
-            }
-        }
+       
         stage('Test Case'){
             steps{
                 echo "Testing case passed..."
@@ -19,6 +15,11 @@ pipeline{
         stage("Build Code"){
             steps{
                 sh "docker build -t flask-app ."
+            }
+        }
+        stage('Trivy Image Scan') {
+            steps {
+                sh 'trivy image --exit-code 1 --severity HIGH,CRITICAL flask-app:latest'
             }
         }
         stage("Push DockerHub"){
