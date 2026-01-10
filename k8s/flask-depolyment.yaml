@@ -15,6 +15,27 @@ spec:
       containers:
         - name: flask-application
           image: cloudwithrk/flask-app:latest
+          env: 
+          - name: MYSQL_HOST
+            valueFrom:
+              configMapKeyRef:
+                key: MYSQL_HOST
+                name: configmap
+          - name: MYSQL_USER
+            valueFrom:
+              configMapKeyRef:
+                key: MYSQL_USER
+                name: configmap
+          - name: MYSQL_DB
+            valueFrom:
+              configMapKeyRef:
+                key: MYSQL_DB
+                name: configmap
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: MYSQL_PASSWORD
+                name: flasksecrets
           resources:
             requests:
               memory: "128Mi"
