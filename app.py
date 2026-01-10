@@ -25,6 +25,27 @@ def init_db():
         mysql.connection.commit()  
         cur.close()
 
+
+# --------------------
+# HEALTH CHECK (LIVENESS)
+# --------------------
+@app.route('/health')
+def health():
+    return jsonify(status="UP"), 200
+
+# --------------------
+# READINESS CHECK
+# --------------------
+@app.route('/ready')
+def ready():
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        return jsonify(status="READY"), 200
+    except Exception as e:
+        return jsonify(status="NOT READY", error=str(e)), 500
+        
 @app.route('/')
 def hello():
     cur = mysql.connection.cursor()
