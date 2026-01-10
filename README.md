@@ -1,9 +1,38 @@
-# DevOps Project Report: Automated CI/CD Pipeline for a 2-Tier Flask Application on AWS
+ 
+## End-to-End 2-Tier Flask Application Deployment using DevSecOps on AWS EKS
+
 
 **Author:** Rajendra
 
----
 
+
+## Tech stack used in this project:
+- GitHub (Code)
+- Docker (Containerization)
+- Jenkins (CI)
+- OWASP (Dependency check)
+- SonarQube (Quality)
+- Trivy (Filesystem Scan)
+- ArgoCD (CD)
+- AWS EKS (Kubernetes)
+- Helm (Monitoring using grafana and prometheus)
+
+---
+#
+> [!Note]
+> This project will be implemented on Eurup Ireland region (eu-west-1).
+> <b>Create 1 Master machine on AWS (t2.large) and 29 GB of storage.</b>
+
+- <b>Open the below ports in security group</b>
+![image](https://github.com/user-attachments/assets/4e5ecd37-fe2e-4e4b-a6ba-14c7b62715a3)
+### Steps to deploy:
+
+- <b id="EKS">Create EKS Cluster on AWS</b>
+- IAM user with **access keys and secret access keys**
+- <b>Create EKS Cluster</b>
+  ```bash
+  eksctl create cluster --name=flaskapp --region=eu-west-1  --version=1.34 --without-nodegroup
+  ```
 ### **Table of Contents**
 1. [Project Overview](#1-project-overview)
 2. [Architecture Diagram](#2-architecture-diagram)
