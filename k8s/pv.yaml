@@ -10,6 +10,9 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   storageClassName: mysql-sc
-  nfs:
-    path: /tmp/mysql
-    server: 172.31.19.219
+  # nfs:
+  #   path: /tmp/mysql
+  #   server: 172.31.19.219
+  hostPath:
+    path: /mnt/data/mysql
+    type: DirectoryOrCreate

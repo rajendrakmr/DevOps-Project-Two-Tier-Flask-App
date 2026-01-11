@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flask-ing
+  namespace: flaskapp-ns
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"  # Force HTTPS
+    cert-manager.io/cluster-issuer: letsencrypt-prod  # Use Let's Encrypt
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - flask.hicloud.co.in
+    secretName: flask-tls-secret  # Cert-Manager will manage this
+  rules:
+  - host: flask.hicloud.co.in
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: flask-svc
+            port:
+              number: 5000
