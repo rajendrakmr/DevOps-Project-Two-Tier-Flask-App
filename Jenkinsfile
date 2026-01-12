@@ -1,6 +1,26 @@
 pipeline{
     agent any 
+    
+     parameters {
+        string(name: 'DOCKER_TAG', defaultValue: '', description: 'Setting docker image for latest push') 
+    }
     stages{
+        stage("Validate Parameters") {
+            steps {
+                script {
+                    if (params.DOCKER_TAG == '') {
+                        error("DOCKER_TAG must be provided.")
+                    }
+                }
+            }
+        }
+        stage("Clean WS"){
+            steps{
+                script{
+                     cleanWs()
+                }
+            }
+        }
         stage('Clone Code'){
             steps{
                 git url: "https://github.com/rajendrakmr/DevOps-Project-Two-Tier-Flask-App.git", branch: "main"
@@ -37,18 +57,15 @@ pipeline{
 
                 }
             }
-        }
-        // stage('Deploy'){
-        //     steps{
-        //         sh "docker compose down || true"
-        //         sh "docker compose up -d --build"
-        //     }
-        // }
+        } 
     }
-    post {
-        always {
-            sh 'docker system prune -f || true'
-            cleanWs()
+  
+     post{ 
+        success{
+            // archiveArtifacts artifacts: '*.xml', followSymlinks: false
+            build job: "Flaskapp-CD", parameters: [
+                string(name: 'DOCKER_TAG', value: "${params.DOCKER_TAG}")
+            ]
         }
     }
 
