@@ -6,6 +6,7 @@ metadata:
 spec:
   selector:
     app: flask-app-deploy
+  type: NodePort
   ports:
   - port: 5000
     targetPort: 5000
