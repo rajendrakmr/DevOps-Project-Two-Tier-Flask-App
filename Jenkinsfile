@@ -32,6 +32,14 @@ pipeline{
                 sh 'trivy fs --exit-code 1 --severity HIGH,CRITICAL .'
             }
         }
+        stage("OWASP: Dependency check"){
+            steps{
+                script{
+                        dependencyCheck additionalArguments: '--scan ./', odcInstallation: 'OWASP'
+                        dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                }
+            }
+        }
         stage('Test Case'){
             steps{
                 echo "Testing case passed..."
@@ -62,7 +70,7 @@ pipeline{
   
      post{ 
         success{
-            // archiveArtifacts artifacts: '*.xml', followSymlinks: false
+            //archiveArtifacts artifacts: '*.xml', followSymlinks: false
             build job: "Flaskapp-CD", parameters: [
                 string(name: 'DOCKER_TAG', value: "${params.DOCKER_TAG}")
             ]
