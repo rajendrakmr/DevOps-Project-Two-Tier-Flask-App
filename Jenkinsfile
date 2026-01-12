@@ -4,6 +4,10 @@ pipeline{
      parameters {
         string(name: 'DOCKER_TAG', defaultValue: '', description: 'Setting docker image for latest push') 
     }
+    environment{
+        SONAR_HOME = tool "Sonar"
+        BRANCH = "main"
+    }
     stages{
         stage("Validate: Parameters") {
             steps {
@@ -34,8 +38,7 @@ pipeline{
         }
         stage('OWASP Dependency Check') {
         steps {
-            echo "Running OWASP Dependency Check..."
-            // Use a persistent path for the database and format the reports
+            echo "Running OWASP Dependency Check..." 
             dependencyCheck additionalArguments: """
                 -o './dependency-check-report'
                 --scan './target/*.jar'
@@ -53,6 +56,26 @@ pipeline{
                 archiveArtifacts artifacts: 'dependency-check-report/*.html, dependency-check-report/*.xml'
             }
         }
+
+        
+        stage("Sonar: Code Analysys"){
+            steps{
+                withSonarQubeEnv("Sonar"){
+                    sh "$SONAR_HOME/bin/sonar-scanner -Dsonar.projectName=flaskapp -Dsonar.projectKey=flaskapp -X"
+                    }
+                }
+            }
+        }
+
+        stage("Quality Gate"){
+            timeout(time: 1, unit: 'HOURS') {
+                def qg = waitForQualityGate()
+                if (qg.status != 'OK') {
+                    error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                }
+            }
+        }
+
         
         stage('Test Case: Testing'){
             steps{
