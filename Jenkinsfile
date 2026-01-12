@@ -16,9 +16,9 @@ pipeline{
         }
         stage("WS: Clean"){
             steps{
-                script{
-                     cleanWs()
-                }
+                
+                cleanWs()
+                 
             }
         }
         stage('Git: Checkout'){
