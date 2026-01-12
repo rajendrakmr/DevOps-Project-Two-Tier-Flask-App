@@ -5,7 +5,7 @@ pipeline{
         string(name: 'DOCKER_TAG', defaultValue: '', description: 'Setting docker image for latest push') 
     }
     stages{
-        stage("Validate Parameters") {
+        stage("Validate: Parameters") {
             steps {
                 script {
                     if (params.DOCKER_TAG == '') {
@@ -14,37 +14,37 @@ pipeline{
                 }
             }
         }
-        stage("Clean WS"){
+        stage("WS: Clean"){
             steps{
                 script{
                      cleanWs()
                 }
             }
         }
-        stage('Clone Code'){
+        stage('Git: Checkout'){
             steps{
                 git url: "https://github.com/rajendrakmr/DevOps-Project-Two-Tier-Flask-App.git", branch: "main"
             }
         }
        
-       stage('File Scan') {
+       stage('Security: Trivy File Scan') {
             steps {
                 sh 'trivy fs --exit-code 1 --severity HIGH,CRITICAL .'
             }
         }
         
-        stage('Test Case'){
+        stage('Test Case: Testing'){
             steps{
                 echo "Testing case passed..."
             }
         }
-        stage("Build Code"){
+        stage("Build: Docker Image"){
             steps{
                 sh "docker build -t flask-app ."
             }
         }
         
-        stage("Push DockerHub"){
+        stage("Publish: DockerHub Push"){
             steps{
                 withCredentials([usernamePassword(
                     credentialsId: "dockerHubCreds",
@@ -64,9 +64,7 @@ pipeline{
      post{ 
         success{
             //archiveArtifacts artifacts: '*.xml', followSymlinks: false
-            build job: "Flaskapp-CD", parameters: [
-                string(name: 'DOCKER_TAG', value: "${params.DOCKER_TAG}")
-            ]
+            build job: "Flaskapp-CD", parameters: [ string(name: 'DOCKER_TAG', value: "${params.DOCKER_TAG}")  ]
         }
     }
 
