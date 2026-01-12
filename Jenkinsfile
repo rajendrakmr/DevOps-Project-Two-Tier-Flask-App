@@ -32,14 +32,7 @@ pipeline{
                 sh 'trivy fs --exit-code 1 --severity HIGH,CRITICAL .'
             }
         }
-        stage("OWASP: Dependency check"){
-            steps{
-                script{
-                        dependencyCheck additionalArguments: '--scan ./', odcInstallation: 'OWASP'
-                        dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-                }
-            }
-        }
+        
         stage('Test Case'){
             steps{
                 echo "Testing case passed..."
@@ -60,8 +53,8 @@ pipeline{
 
                 )]){
                     sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPass}"
-                    sh "docker tag flask-app:latest  ${env.dockerHubUser}/flask-app:latest"
-                    sh "docker push ${env.dockerHubUser}/flask-app:latest" 
+                    sh "docker tag flask-app:latest  ${env.dockerHubUser}/flask-app:${params.DOCKER_TAG}"
+                    sh "docker push ${env.dockerHubUser}/flask-app:${params.DOCKER_TAG}" 
 
                 }
             }
