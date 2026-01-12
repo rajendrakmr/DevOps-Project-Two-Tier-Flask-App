@@ -32,6 +32,27 @@ pipeline{
                 sh 'trivy fs --exit-code 1 --severity HIGH,CRITICAL .'
             }
         }
+        stage('OWASP Dependency Check') {
+        steps {
+            echo "Running OWASP Dependency Check..."
+            // Use a persistent path for the database and format the reports
+            dependencyCheck additionalArguments: """
+                -o './dependency-check-report'
+                --scan './target/*.jar'
+                --format HTML
+                --format XML
+                --prettyPrint
+                --failOnCVSS 7.0
+                 """,
+                odcInstallation: 'OWASP' 
+            }
+        }
+        stage('Publish OWASP Dependency Check Report') {
+            steps { 
+                dependencyCheckPublisher pattern: 'dependency-check-report/dependency-check-report.xml'
+                archiveArtifacts artifacts: 'dependency-check-report/*.html, dependency-check-report/*.xml'
+            }
+        }
         
         stage('Test Case: Testing'){
             steps{
