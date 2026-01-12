@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: flask-application
-          image: cloudwithrk/flask-app:v1.0.0
+          image: cloudwithrk/flask-app:v1.0.2
           env: 
           - name: MYSQL_HOST
             valueFrom:
